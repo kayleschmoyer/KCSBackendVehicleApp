@@ -3,10 +3,10 @@ const sql = require("mssql");
 const jwt = require("jsonwebtoken");
 
 // Signup User
-const signupUser = async (req, res) => {
-  const { firstName, lastName, email, password } = req.body;
+exports.signupUser = async (req, res) => {
+  const { customerNumber, firstName, lastName, email, password } = req.body;
 
-  if (!firstName || !lastName || !email || !password) {
+  if (!customerNumber || !firstName || !lastName || !email || !password) {
     return res.status(400).json({ message: "All fields are required." });
   }
 
@@ -17,22 +17,17 @@ const signupUser = async (req, res) => {
     const checkQuery = `
       SELECT AppPassword 
       FROM Customer 
-      WHERE LOWER(FIRST_NAME) = LOWER(@firstName) 
-        AND LOWER(LAST_NAME) = LOWER(@lastName) 
-        AND LOWER(EMAILADDRESS) = LOWER(@email)
+      WHERE CUSTOMER_NUMBER = @customerNumber
     `;
 
     const result = await pool
       .request()
-      .input("firstName", sql.VarChar, firstName)
-      .input("lastName", sql.VarChar, lastName)
-      .input("email", sql.VarChar, email)
+      .input("customerNumber", sql.VarChar, customerNumber)
       .query(checkQuery);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({
-        message:
-          "You are not in our system. Please contact the store to be added.",
+        message: "You are not in our system. Please contact the store to be added.",
       });
     }
 
@@ -51,42 +46,47 @@ const signupUser = async (req, res) => {
     const updateQuery = `
       UPDATE Customer 
       SET AppPassword = @hashedPassword 
-      WHERE LOWER(FIRST_NAME) = LOWER(@firstName) 
-        AND LOWER(LAST_NAME) = LOWER(@lastName) 
-        AND LOWER(EMAILADDRESS) = LOWER(@email)
+      WHERE CUSTOMER_NUMBER = @customerNumber
     `;
 
     await pool
       .request()
       .input("hashedPassword", sql.VarChar, hashedPassword)
-      .input("firstName", sql.VarChar, firstName)
-      .input("lastName", sql.VarChar, lastName)
-      .input("email", sql.VarChar, email)
+      .input("customerNumber", sql.VarChar, customerNumber)
       .query(updateQuery);
 
     res.status(200).json({ message: "Sign-up successful. You can now log in." });
   } catch (error) {
-    console.error("Signup Error:", error);
-    res.status(500).json({ message: "An error occurred during sign-up." });
+    console.error("Signup Error:", error.message);
+    res.status(500).json({ message: "An error occurred during sign-up.", error: error.message });
   }
 };
 
 // Login User
-const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+exports.loginUser = async (req, res) => {
+  const { customerNumber, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required." });
+  if (!customerNumber || !password) {
+    return res.status(400).json({ message: "Customer number and password are required." });
   }
 
   try {
+    console.log("Connecting to database...");
     const pool = await sql.connect();
 
-    // Fetch user based on email
+    console.log("Fetching user for customer number:", customerNumber);
+
+    // Fetch user based on customer number
     const result = await pool
       .request()
-      .input("email", sql.VarChar, email)
-      .query("SELECT AppPassword, FIRST_NAME, LAST_NAME FROM Customer WHERE EMAILADDRESS = @email");
+      .input("customerNumber", sql.VarChar, customerNumber)
+      .query(`
+        SELECT CUSTOMER_NUMBER, AppPassword, FIRST_NAME, LAST_NAME, EMAILADDRESS 
+        FROM Customer 
+        WHERE CUSTOMER_NUMBER = @customerNumber
+      `);
+
+    console.log("Query Result:", result.recordset);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ message: "User not found. Please sign up." });
@@ -100,21 +100,21 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid password." });
     }
 
-    // Generate JWT
+    // Generate JWT including CUSTOMER_NUMBER
     const token = jwt.sign(
-      { email: email, firstName: user.FIRST_NAME, lastName: user.LAST_NAME },
+      {
+        CUSTOMER_NUMBER: user.CUSTOMER_NUMBER,
+        firstName: user.FIRST_NAME,
+        lastName: user.LAST_NAME,
+        email: user.EMAILADDRESS,
+      },
       process.env.JWT_SECRET || "secret",
       { expiresIn: "1h" }
     );
 
     res.status(200).json({ message: "Login successful.", token });
   } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({ message: "An error occurred during login." });
+    console.error("Login Error:", error.message);
+    res.status(500).json({ message: "An error occurred during login.", error: error.message });
   }
-};
-
-module.exports = {
-  signupUser,
-  loginUser,
 };
