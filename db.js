@@ -1,6 +1,7 @@
 const { Sequelize } = require("sequelize");
-require("dotenv").config(); // Load environment variables from .env file
+require("dotenv").config();
 
+// Initialize Sequelize instance
 const db = new Sequelize({
   dialect: "mssql",
   host: process.env.DB_HOST, // SQL Server host
@@ -14,7 +15,7 @@ const db = new Sequelize({
       trustServerCertificate: process.env.DB_TRUST_CERT === "true",
     },
   },
-  logging: console.log,
+  logging: console.log, 
 });
 
 // Test the database connection

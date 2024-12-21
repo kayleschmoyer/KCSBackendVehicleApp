@@ -1,7 +1,7 @@
 const Customer = require("./Customer");
-const Vehicle = require("./Vehicle");
+const Car = require("./Car");
 
 module.exports = {
   Customer,
-  Vehicle,
+  Car,
 };

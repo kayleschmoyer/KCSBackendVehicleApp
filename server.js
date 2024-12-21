@@ -1,39 +1,35 @@
 const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-require("dotenv").config(); // Load environment variables
+const dotenv = require("dotenv");
+const db = require("./db"); // Import Sequelize instance
+const customerRoutes = require("./routes/customerRoutes");
+const vehicleRoutes = require("./routes/vehicleRoutes"); // Import vehicle routes
+const authRoutes = require("./routes/authRoutes");
 
-const db = require("./db"); // Sequelize database connection
-const authRoutes = require("./routes/authRoutes"); // Authentication routes
-const customerRoutes = require("./routes/customerRoutes"); // Customer routes (if needed)
+dotenv.config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/vehicles", vehicleRoutes); // Register the vehicle routes
+app.use("/api/auth", authRoutes);
 
-// Test database connection and sync
+// Start server
 (async () => {
   try {
-    await db.authenticate();
-    console.log("Database connection established successfully.");
-
-    // Sync all models
-    await db.sync({ alter: false, force: false });
+    await db.authenticate(); // Test the connection
+    console.log("Connection to the database has been established successfully.");
+    await db.sync(); // Sync models with the database
     console.log("Database synchronized.");
 
-    // Start the server
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("Unable to connect to the database:", error);
-    process.exit(1);
   }
 })();

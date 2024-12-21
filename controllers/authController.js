@@ -86,11 +86,11 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // Generate a JWT token
+    // Generate JWT with CUSTOMER_NUMBER
     const token = jwt.sign(
-      { customerNumber: customer.CUSTOMER_NUMBER }, // Payload includes the customer's unique number
-      process.env.JWT_SECRET, // Use your secret key from .env
-      { expiresIn: "1h" } // Token expires in 1 hour
+      { CUSTOMER_NUMBER: customer.CUSTOMER_NUMBER },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
     );
 
     res.status(200).json({ message: "Login successful.", token });
@@ -100,7 +100,4 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = {
-  signupUser,
-  loginUser,
-};
+module.exports = { loginUser, signupUser };
