@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const { Op } = require("sequelize");
 const { Customer } = require("../models"); // Import the Customer model
+const jwt = require("jsonwebtoken");
 
 // Signup a new user
 const signupUser = async (req, res) => {
@@ -11,25 +12,33 @@ const signupUser = async (req, res) => {
   }
 
   try {
-    // Check if user exists in the database
-    const existingCustomer = await Customer.findOne({
-      where: {
-        [Op.and]: [
-          { FIRST_NAME: { [Op.like]: firstName.toLowerCase() } }, // Case-insensitive match
-          { LAST_NAME: { [Op.like]: lastName.toLowerCase() } },
-          { EMAILADDRESS: { [Op.like]: email.toLowerCase() } },
-        ],
-      },
+    // Search for email
+    const existingCustomers = await Customer.findAll({
+      where: { EMAILADDRESS: { [Op.like]: email.toLowerCase() } },
     });
 
-    if (!existingCustomer) {
+    if (existingCustomers.length === 0) {
       return res.status(404).json({
         message:
           "You are not in our system. Please contact the store to be added.",
       });
     }
 
-    if (existingCustomer.AppPassword) {
+    // Find matching first and last name
+    const matchingCustomer = existingCustomers.find(
+      (customer) =>
+        customer.FIRST_NAME.toLowerCase() === firstName.toLowerCase() &&
+        customer.LAST_NAME.toLowerCase() === lastName.toLowerCase()
+    );
+
+    if (!matchingCustomer) {
+      return res.status(404).json({
+        message:
+          "Name and email combination not found. Please contact the store.",
+      });
+    }
+
+    if (matchingCustomer.AppPassword) {
       return res.status(400).json({
         message: "You are already signed up. Please log in.",
       });
@@ -38,11 +47,14 @@ const signupUser = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update the user's password in the database
-    existingCustomer.AppPassword = hashedPassword;
-    await existingCustomer.save();
+    // Save the hashed password in the database
+    matchingCustomer.AppPassword = hashedPassword;
+    await matchingCustomer.save();
 
-    res.status(200).json({ message: "Sign-up successful. You can now log in." });
+    res.status(200).json({
+      message: "Sign-up successful. You can now log in.",
+      customerNumber: matchingCustomer.CUSTOMER_NUMBER,
+    });
   } catch (error) {
     console.error("Signup Error:", error);
     res.status(500).json({ message: "An error occurred during sign-up." });
@@ -74,8 +86,14 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // Respond with success message or JWT token
-    res.status(200).json({ message: "Login successful." });
+    // Generate a JWT token
+    const token = jwt.sign(
+      { customerNumber: customer.CUSTOMER_NUMBER }, // Payload includes the customer's unique number
+      process.env.JWT_SECRET, // Use your secret key from .env
+      { expiresIn: "1h" } // Token expires in 1 hour
+    );
+
+    res.status(200).json({ message: "Login successful.", token });
   } catch (error) {
     console.error("Login Error:", error);
     res.status(500).json({ message: "An error occurred during login." });
