@@ -1,8 +1,8 @@
 const bcrypt = require("bcrypt");
-const sql = require("mssql");
-const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
+const { Customer } = require("../models"); // Import the Customer model
 
-// Signup User
+// Signup a new user
 const signupUser = async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
 
@@ -11,58 +11,36 @@ const signupUser = async (req, res) => {
   }
 
   try {
-    const pool = await sql.connect();
+    // Check if user exists in the database
+    const existingCustomer = await Customer.findOne({
+      where: {
+        [Op.and]: [
+          { FIRST_NAME: { [Op.like]: firstName.toLowerCase() } }, // Case-insensitive match
+          { LAST_NAME: { [Op.like]: lastName.toLowerCase() } },
+          { EMAILADDRESS: { [Op.like]: email.toLowerCase() } },
+        ],
+      },
+    });
 
-    // Check if user exists and AppPassword is already set
-    const checkQuery = `
-      SELECT AppPassword 
-      FROM Customer 
-      WHERE LOWER(FIRST_NAME) = LOWER(@firstName) 
-        AND LOWER(LAST_NAME) = LOWER(@lastName) 
-        AND LOWER(EMAILADDRESS) = LOWER(@email)
-    `;
-
-    const result = await pool
-      .request()
-      .input("firstName", sql.VarChar, firstName)
-      .input("lastName", sql.VarChar, lastName)
-      .input("email", sql.VarChar, email)
-      .query(checkQuery);
-
-    if (result.recordset.length === 0) {
+    if (!existingCustomer) {
       return res.status(404).json({
         message:
           "You are not in our system. Please contact the store to be added.",
       });
     }
 
-    const user = result.recordset[0];
-
-    if (user.AppPassword) {
+    if (existingCustomer.AppPassword) {
       return res.status(400).json({
         message: "You are already signed up. Please log in.",
       });
     }
 
-    // Hash password
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update AppPassword for the user
-    const updateQuery = `
-      UPDATE Customer 
-      SET AppPassword = @hashedPassword 
-      WHERE LOWER(FIRST_NAME) = LOWER(@firstName) 
-        AND LOWER(LAST_NAME) = LOWER(@lastName) 
-        AND LOWER(EMAILADDRESS) = LOWER(@email)
-    `;
-
-    await pool
-      .request()
-      .input("hashedPassword", sql.VarChar, hashedPassword)
-      .input("firstName", sql.VarChar, firstName)
-      .input("lastName", sql.VarChar, lastName)
-      .input("email", sql.VarChar, email)
-      .query(updateQuery);
+    // Update the user's password in the database
+    existingCustomer.AppPassword = hashedPassword;
+    await existingCustomer.save();
 
     res.status(200).json({ message: "Sign-up successful. You can now log in." });
   } catch (error) {
@@ -71,7 +49,7 @@ const signupUser = async (req, res) => {
   }
 };
 
-// Login User
+// Login an existing user
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -80,34 +58,24 @@ const loginUser = async (req, res) => {
   }
 
   try {
-    const pool = await sql.connect();
+    // Find the user by email
+    const customer = await Customer.findOne({
+      where: { EMAILADDRESS: { [Op.like]: email.toLowerCase() } },
+    });
 
-    // Fetch user based on email
-    const result = await pool
-      .request()
-      .input("email", sql.VarChar, email)
-      .query("SELECT AppPassword, FIRST_NAME, LAST_NAME FROM Customer WHERE EMAILADDRESS = @email");
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: "User not found. Please sign up." });
+    if (!customer) {
+      return res.status(404).json({ message: "Invalid email or password." });
     }
 
-    const user = result.recordset[0];
+    // Compare the password
+    const isPasswordValid = await bcrypt.compare(password, customer.AppPassword);
 
-    // Compare hashed passwords
-    const isMatch = await bcrypt.compare(password, user.AppPassword);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid password." });
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // Generate JWT
-    const token = jwt.sign(
-      { email: email, firstName: user.FIRST_NAME, lastName: user.LAST_NAME },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "1h" }
-    );
-
-    res.status(200).json({ message: "Login successful.", token });
+    // Respond with success message or JWT token
+    res.status(200).json({ message: "Login successful." });
   } catch (error) {
     console.error("Login Error:", error);
     res.status(500).json({ message: "An error occurred during login." });
