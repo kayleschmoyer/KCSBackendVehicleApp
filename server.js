@@ -4,11 +4,14 @@ const db = require("./db"); // Import Sequelize instance
 const customerRoutes = require("./routes/customerRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes"); // Import vehicle routes
 const authRoutes = require("./routes/authRoutes");
+const cors = require("cors"); // Import cors
 
 dotenv.config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(cors({ origin: "*" }));
 
 // Middleware
 app.use(express.json());
