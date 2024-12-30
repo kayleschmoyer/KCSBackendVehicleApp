@@ -1,14 +1,26 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../db');
+const { DataTypes } = require("sequelize");
+const sequelize = require("../db");
+const Class = require("./Class");
 
-const Histline = sequelize.define('Histline', {
-  InvoiceNumber: { type: DataTypes.STRING, allowNull: false },
-  ItemName: { type: DataTypes.STRING, allowNull: false },
-  Quantity: { type: DataTypes.INTEGER, allowNull: false },
-  Price: { type: DataTypes.FLOAT, allowNull: false },
-}, {
-  tableName: 'Histline',
-  timestamps: false,
+const HistLine = sequelize.define(
+  "HistLine",
+  {
+    INVOICE_NUMBER: { type: DataTypes.STRING, primaryKey: true, allowNull: false },
+    CLASS: { type: DataTypes.INTEGER, allowNull: false },
+    QUANTITY: { type: DataTypes.FLOAT, allowNull: false },
+    SELL_PRICE: { type: DataTypes.FLOAT, allowNull: false },
+    DECLINED: { type: DataTypes.INTEGER, allowNull: true },
+  },
+  {
+    tableName: "HistLine",
+    timestamps: false,
+  }
+);
+
+// Define association with Class
+HistLine.belongsTo(Class, {
+  foreignKey: "CLASS", // Foreign key in HistLine
+  targetKey: "Class",  // Primary key in Class
 });
 
-module.exports = Histline;
+module.exports = HistLine;
