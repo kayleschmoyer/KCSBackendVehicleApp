@@ -2,6 +2,10 @@ const { DataTypes } = require("sequelize");
 const db = require("../db"); // Import the Sequelize instance
 
 const Vehicle = db.define("Vehicle", {
+  CUSTOMER_NUMBER: {
+    type: DataTypes.STRING(10), // Important to match SQL Server
+    allowNull: false,
+  },
   CAR_YEAR: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -25,7 +29,7 @@ const Vehicle = db.define("Vehicle", {
   },
 }, {
   tableName: "CAR",
-  timestamps: false, // Set to true if the table includes createdAt and updatedAt
+  timestamps: false,
 });
 
 module.exports = Vehicle;
