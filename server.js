@@ -4,6 +4,7 @@ const db = require("./db"); // Import Sequelize instance
 const customerRoutes = require("./routes/customerRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes"); // Import vehicle routes
 const authRoutes = require("./routes/authRoutes");
+const estimateRoutes = require("./routes/estimateRoutes");
 const cors = require("cors"); // Import cors
 
 dotenv.config(); // Load environment variables
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use("/api/customers", customerRoutes);
 app.use("/api/vehicles", vehicleRoutes); // Register the vehicle routes
 app.use("/api/auth", authRoutes);
+app.use("/api/estimates", estimateRoutes);
 
 // Start server
 (async () => {

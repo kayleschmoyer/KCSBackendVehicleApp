@@ -5,6 +5,7 @@ const Car = require("./Car");
 const Class = require("./Class");
 const HistHdr = require("./HistHdr");
 const HistLine = require("./HistLine");
+const Estimate = require("./Estimate");
 
 module.exports = {
   sequelize, // Export sequelize instance
@@ -14,4 +15,5 @@ module.exports = {
   Class,
   HistHdr,
   HistLine,
+  Estimate,
 };
